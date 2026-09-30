@@ -4,11 +4,11 @@
 
 ## 1. Thông tin học viên
 
-- **Họ và tên:** Nguyễn Thành Giang
+- **Họ và tên:** Nguyễn Thanh Giang
 - **MSSV:** 2A202602576
 - **Lớp:** K4-L3B
 - **Repository URL:** https://github.com/Giangsd14/K4-L3-DAY13-NguyenThanhGiang-2A202602576-Monitoring-LLMOps
-- **Commit SHA cuối:** f509abd
+- **Commit SHA cuối:** c2312b6
 - **Challenge ID:** `day13-k4-l3b-monitoring-llmops-v1`
 - **Tên project Langfuse cá nhân:** `day13-k4-l3b-2A202602576`
 
