@@ -104,3 +104,29 @@
   1. Áp dụng timeout giới hạn nghiêm ngặt (ví dụ `timeout = 1.5s`) cho hàm truy xuất tài liệu vector database, kết hợp circuit breaker chuyển sang fallback response khi vector database bị chậm.
   2. Giám sát cảnh báo `HighLatencyP95` (P95 > 3000ms trong 5m) qua Slack `#k4-l3b-alerts` để can thiệp kịp thời.
   3. Cài đặt bộ đệm (Semantic Cache / In-memory caching) cho các câu hỏi phổ biến để giảm thiểu các truy vấn trùng lặp tới vector store.
+
+## 8. Giải thích và tự đánh giá
+
+- **Một quyết định kỹ thuật quan trọng và lý do:** Thiết kế middleware tự động bind correlation ID ngay từ tầng HTTP và inject vào cả 2 kênh giám sát song song (Structured Structlog và Langfuse Trace Metadata). Quyết định này giúp kết nối liền mạch giữa log và trace, cho phép điều tra sự cố tức thì từ log line tìm ra đúng trace waterfall mà không cần phụ thuộc vào một công cụ đơn lẻ.
+- **Một lỗi/blocker đã gặp:** Gặp lỗi 401 Unauthorized khi kết nối Langfuse Cloud ban đầu do cấu hình nhầm `LANGFUSE_BASE_URL` trỏ về region US (`https://us.cloud.langfuse.com`) và có dấu ngoặc kép bọc chuỗi, trong khi project thực tế nằm tại region EU (`https://cloud.langfuse.com`).
+- **Cách tìm nguyên nhân và xử lý:** Dùng script Python gửi request trực tiếp đến endpoint `/api/public/projects` của cả hai host, phát hiện host EU trả về HTTP 200 kèm project ID chính xác. Sau đó chuẩn hóa lại biến môi trường trong `.env` và khởi động lại API server.
+- **Cách hiểu luồng Metrics → Logs → Traces:**
+  - *Metrics*: Cung cấp bức tranh tổng thể ở tầng cao (Dashboard) để phát hiện triệu chứng (suy giảm chất lượng, tăng độ trễ, tăng tỷ lệ lỗi) và khoanh vùng thời điểm sự cố.
+  - *Logs*: Thu hẹp phạm vi vào các request cụ thể bị ảnh hưởng trong khung giờ đó, cung cấp context chi tiết và mã `correlation_id`.
+  - *Traces*: Dùng `correlation_id` mở cây waterfall chi tiết của request để xác định chính xác span nào (retrieval hay generation) và câu lệnh nào gây ra nghẽn/lỗi.
+- **Vai trò của prompt version, token/cost, SLO hoặc rollback trong vận hành LLM:**
+  - Prompt versioning cho phép quản lý sự thay đổi của prompt như mã nguồn phần mềm, gán nhãn `production`/`candidate` để deploy an toàn.
+  - Rollback tức thì mà không cần rebuild/re-deploy mã nguồn khi prompt mới gây hồi quy chất lượng hoặc tăng vọt chi phí.
+  - Giám sát token & cost giúp phát hiện sớm các cuộc tấn công prompt injection hoặc vòng lặp vô tận làm cạn kiệt ngân sách.
+- **Điều quan trọng nhất đã học:** Hiểu sâu sắc triết lý Observability trong hệ thống LLM: không chỉ giám sát tài nguyên máy chủ truyền thống mà cần giám sát chất lượng suy luận, số lượng token, chi phí và truy vết phân tán giữa RAG và LLM.
+- **Hạn chế hoặc phần chưa hoàn thành, nếu có:** Cần tiếp tục theo dõi khi tải thực tế biến động lớn và bổ sung thêm các bộ đánh giá tự động (LLM-as-a-judge) nâng cao.
+
+## 9. Checklist trước khi nộp
+
+- [ ] Kết quả và evidence thuộc commit SHA cuối.
+- [ ] Tất cả ảnh/output mở được bằng đường dẫn tương đối.
+- [ ] Incident evidence nối đúng metric → log → trace.
+- [ ] Trace/prompt evidence thuộc project Langfuse cá nhân và ảnh không lộ key/secret.
+- [ ] Repository chạy lại được theo README.
+- [ ] Không có secret, API key, PII thô hoặc evidence của người khác/lớp khác.
+- [ ] URL repo và commit SHA cuối đã được nộp trên LMS/Codelabs.
