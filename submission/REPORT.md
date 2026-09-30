@@ -4,13 +4,13 @@
 
 ## 1. Thông tin học viên
 
-- **Họ và tên:**
-- **MSSV:**
+- **Họ và tên:** Nguyễn Thành Giang
+- **MSSV:** 2A202602576
 - **Lớp:** K4-L3B
-- **Repository URL:**
-- **Commit SHA cuối:**
-- **Challenge ID:**
-- **Tên project Langfuse cá nhân:** `day13-k4-l3b-<MSSV>`
+- **Repository URL:** https://github.com/vinuin/K4-L3-DAY13-NguyenThanhGiang-2A202602576-Monitoring-LLMOps
+- **Commit SHA cuối:** (cập nhật khi hoàn tất)
+- **Challenge ID:** (cập nhật tại CP3)
+- **Tên project Langfuse cá nhân:** `day13-k4-l3b-2A202602576`
 
 ## 2. Evidence index
 
@@ -37,44 +37,58 @@
 
 | Nội dung | Baseline | Kết quả cuối | Nhận xét |
 |---|---|---|---|
-| `validate_logs.py` | | | |
-| `validate_dashboard.py` | | | |
-| `pytest` | | | |
-| Số traces hợp lệ | | | |
-| Số PII leak | | | |
-| Latency P95 / TTFT P95 | | | |
-| Retrieval success rate | | | |
+| `validate_logs.py` | 30/100 | 100/100 | Đạt điểm tuyệt đối, correlation ID truyền chuẩn, log enrichment đầy đủ |
+| `validate_dashboard.py` | 6/6 | 6/6 | Đạt chuẩn 6/6 panel hợp đồng |
+| `pytest` | 22 passed | 25 passed | Đã bổ sung unit tests cho CCCD, Credit Card, Passport |
+| Số traces hợp lệ | 0 | 14+ | Tự sinh trên project Langfuse cá nhân `day13-k4-l3b-2A202602576` |
+| Số PII leak | 0 | 0 | Scrubbing hoạt động hiệu quả trước khi ghi log/trace |
+| Latency P95 / TTFT P95 | 1551ms / 50ms | 152ms / 50ms | Độ trễ ổn định dưới ngưỡng 3000ms |
+| Retrieval success rate | 100% | 100% | Tỷ lệ trích xuất tài liệu thành công đạt 100% ở baseline |
 
 ## 4. Logging và PII
 
-- **Cách tạo/nhận và truyền correlation ID:**
-- **Các metadata được ghi vào structured log:**
-- **Cách bảo đảm PII được scrub trước khi ghi:**
-- **Cách kiểm chứng kết quả:**
+- **Cách tạo/nhận và truyền correlation ID:** Trong `app/middleware.py`, tại đầu hàm `dispatch`, middleware gọi `clear_contextvars()` để xóa context cũ tránh rò rỉ giữa các request. Sau đó trích xuất `x-request-id` từ header; nếu không có thì sinh mã ngẫu nhiên dạng `req-<8-hex>` (`req-{uuid.uuid4().hex[:8]}`). ID này được bind vào contextvars qua `bind_contextvars(correlation_id=correlation_id)` và lưu vào `request.state.correlation_id`. Khi trả response, middleware bổ sung `x-request-id` và `x-response-time-ms` vào response headers.
+- **Các metadata được ghi vào structured log:** Gồm `ts`, `level`, `service`, `event`, `correlation_id`, `user_id_hash` (băm sha256 12 ký tự), `session_id`, `feature`, `model`, `env`, cùng các trường metrics `latency_ms`, `ttft_ms`, `tokens_in`, `tokens_out`, `cost_usd`, `quality_score`, `tool_name`, `tool_success`.
+- **Cách bảo đảm PII được scrub trước khi ghi:** Trong `app/logging_config.py`, bộ xử lý `scrub_event` đệ quy (`_scrub_value`) trên toàn bộ chuỗi ký tự trong `event_dict` bằng các regex pattern trong `app/pii.py` (email, phone VN, CCCD 12 số, credit card 16 số, passport). Processor này được đăng ký trong pipeline structlog ngay trước `JsonlFileProcessor` và `JSONRenderer`, bảo đảm dữ liệu nhạy cảm được thay thế thành `[REDACTED_...]` trước khi ghi file `data/logs.jsonl` hoặc xuất console.
+- **Cách kiểm chứng kết quả:** Chạy `python scripts/validate_logs.py` đạt 100/100 điểm: không có PII leak, 0 missing required fields, 0 missing enrichment fields.
 
 ## 5. Tracing và prompt versioning
 
-- **Cách xác nhận traces do chính tôi tạo trong project cá nhân:**
-- **Cấu trúc root/retrieval/generation observations:**
-- **Cách nối trace với log:**
-- **Prompt name:**
-- **Version/label baseline:**
-- **Version/label candidate:**
+- **Cách xác nhận traces do chính tôi tạo trong project cá nhân:** Toàn bộ traces được gửi trực tiếp đến project cá nhân `day13-k4-l3b-2A202602576` (Org: `VinUni_AI2026_Lab13`) trên Langfuse Cloud (`https://cloud.langfuse.com`) qua cặp API keys được cấu hình trong `.env`.
+- **Cấu trúc root/retrieval/generation observations:** Sử dụng Langfuse SDK v4 với cấu trúc cây phân cấp:
+  - Root observation: `lab-agent-run` (type `agent`) ghi nhận toàn bộ vòng đời thực thi của agent.
+  - Child observation 1: `retrieval` (type `span`) đo thời gian trích xuất tài liệu từ corpus.
+  - Child observation 2: `generation` (type `generation`) đo thời gian gọi LLM, ghi nhận `model`, `prompt`, `usage_details` (`tokens_in`, `tokens_out`) và `cost_details`.
+- **Cách nối trace với log:** Sử dụng chung trường `correlation_id`. Khi middleware sinh `req-<8-hex>`, ID này được truyền vào `agent.run(..., correlation_id=...)` và gán vào metadata của trace qua `propagate_attributes(metadata={"correlation_id": correlation_id, ...})`.
+- **Prompt name:** `day13-chat`
+- **Version/label baseline:** Version 1 (labels: `baseline`, `production`)
+- **Version/label candidate:** Version 2 (labels: `candidate`)
 - **Trace ID của mỗi version:**
+  - Version 1 (`baseline`/`production`): `609e3f0b69c890a94f25bfb59022e596` (và `66a586c4466a9712b7e55510b51bb53e` sau rollback)
+  - Version 2 (`candidate`/`promoted`): `094cc2e05639ff29fafe4e0bd49c5a07` (và `745ebad94d44ef361f1712a11ffe6cc1` khi promoted)
 - **Cách promote và rollback `production`:**
+  - Để promote Version 2 lên Production: Gọi `lf.update_prompt(name="day13-chat", version=2, new_labels=["candidate", "production"])`.
+  - Để rollback về Version 1: Gọi `lf.update_prompt(name="day13-chat", version=1, new_labels=["baseline", "production"])`. Ứng dụng tự động nhận diện version mới của label `production` từ Langfuse mà không cần sửa code.
 
 ## 6. Dashboard, SLO và alerts
 
-- **Dashboard và sáu panel:**
-- **SLO và lý do chọn:**
-- **Cách tính error budget:**
-- **Ba alert và runbook tương ứng:**
-
-> Ví dụ cách viết error budget: "SLO 99.5% trong 28 ngày nghĩa là error budget 0.5%. Nếu workload có 10,000 request thì tối đa 50 request được phép lỗi hoặc chậm hơn ngưỡng SLO."
+- **Dashboard và sáu panel:** Dựng Web Dashboard tại route `/dashboard` và API `/api/dashboard` (đọc trực tiếp từ `data/logs.jsonl` trong cửa sổ 60 phút, tự refresh mỗi 30s), bao gồm 6 panel:
+  1. *Latency & TTFT*: P50, P95, P99 và TTFT P95 (đơn vị: ms, threshold P95 <= 3000ms).
+  2. *Traffic*: Request count và rate per minute (đơn vị: requests_per_minute, threshold >= 1.0).
+  3. *Errors & Retrieval*: Error rate % và Retrieval success rate % (đơn vị: percent, threshold <= 2% và >= 90%).
+  4. *Cost Over Time*: Tổng chi phí USD tích lũy (đơn vị: usd, threshold <= $2.50).
+  5. *Input & Output Tokens*: Tổng token in và token out (đơn vị: tokens, threshold <= 50,000).
+  6. *Quality Proxy*: Điểm chất lượng trung bình (đơn vị: score_0_to_1, threshold >= 0.75).
+- **SLO và lý do chọn:** SLO `fast_successful_requests` với mục tiêu 99.5% trong cửa sổ 28 ngày (`target_percent: 99.5`, điều kiện: `response_sent` có `latency_ms <= 3000`). Lý do chọn: Đảm bảo người dùng cuối nhận được phản hồi nhanh và chính xác trong hơn 99.5% trường hợp, phản ánh đúng tail latency của hệ thống.
+- **Cách tính error budget:** Với target 99.5%, error budget là `100% - 99.5% = 0.5%`. Nếu hệ thống nhận 10,000 request trong 28 ngày, tối đa chỉ được phép có `10,000 * 0.5% = 50` request bị lỗi hoặc có độ trễ vượt quá 3000ms.
+- **Ba alert và runbook tương ứng:** Cấu hình trong `config/alert_rules.yaml` và `docs/alerts.md`:
+  1. `HighLatencyP95`: Cảnh báo khi P95 latency > 3000ms kéo dài 5 phút (Warning).
+  2. `HighErrorRate`: Cảnh báo khi error rate > 2% kéo dài 5 phút (Critical).
+  3. `LowRetrievalSuccessRate`: Cảnh báo khi tỷ lệ retrieval thành công < 90% kéo dài 5 phút (Warning).
 
 ## 7. Điều tra challenge
 
-- **Challenge ID:**
+- **Challenge ID:** (cập nhật tại CP3)
 - **Khoảng thời gian điều tra:**
 - **Triệu chứng từ metrics:**
 - **Log line và correlation ID liên quan:**
@@ -83,17 +97,21 @@
 - **Fix action:**
 - **Preventive measure:**
 
-> Gợi ý cách viết ngắn, không thay cho evidence thực tế: "Metric cho thấy `[latency/error/cost/quality]` bất thường trong `[khoảng thời gian]`. Log line `[event]` có `correlation_id=[...]` đại diện cho request bị ảnh hưởng. Trace cùng `correlation_id` cho thấy span `[retrieval/generation/prompt/tool]` có dấu hiệu `[chậm/lỗi/token tăng]`. Root cause là `[nguyên nhân suy ra từ evidence]`. Fix action là `[hành động khôi phục]`; preventive measure là `[alert/runbook/test/guardrail để ngăn tái diễn]`."
-
 ## 8. Giải thích và tự đánh giá
 
-- **Một quyết định kỹ thuật quan trọng và lý do:**
-- **Một lỗi/blocker đã gặp:**
-- **Cách tìm nguyên nhân và xử lý:**
+- **Một quyết định kỹ thuật quan trọng và lý do:** Thiết kế middleware tự động bind correlation ID ngay từ tầng HTTP và inject vào cả 2 kênh giám sát song song (Structured Structlog và Langfuse Trace Metadata). Quyết định này giúp kết nối liền mạch giữa log và trace, cho phép điều tra sự cố tức thì từ log line tìm ra đúng trace waterfall mà không cần phụ thuộc vào một công cụ đơn lẻ.
+- **Một lỗi/blocker đã gặp:** Gặp lỗi 401 Unauthorized khi kết nối Langfuse Cloud ban đầu do cấu hình nhầm `LANGFUSE_BASE_URL` trỏ về region US (`https://us.cloud.langfuse.com`) và có dấu ngoặc kép bọc chuỗi, trong khi project thực tế nằm tại region EU (`https://cloud.langfuse.com`).
+- **Cách tìm nguyên nhân và xử lý:** Dùng script Python gửi request trực tiếp đến endpoint `/api/public/projects` của cả hai host, phát hiện host EU trả về HTTP 200 kèm project ID chính xác. Sau đó chuẩn hóa lại biến môi trường trong `.env` và khởi động lại API server.
 - **Cách hiểu luồng Metrics → Logs → Traces:**
+  - *Metrics*: Cung cấp bức tranh tổng thể ở tầng cao (Dashboard) để phát hiện triệu chứng (suy giảm chất lượng, tăng độ trễ, tăng tỷ lệ lỗi) và khoanh vùng thời điểm sự cố.
+  - *Logs*: Thu hẹp phạm vi vào các request cụ thể bị ảnh hưởng trong khung giờ đó, cung cấp context chi tiết và mã `correlation_id`.
+  - *Traces*: Dùng `correlation_id` mở cây waterfall chi tiết của request để xác định chính xác span nào (retrieval hay generation) và câu lệnh nào gây ra nghẽn/lỗi.
 - **Vai trò của prompt version, token/cost, SLO hoặc rollback trong vận hành LLM:**
-- **Điều quan trọng nhất đã học:**
-- **Hạn chế hoặc phần chưa hoàn thành, nếu có:**
+  - Prompt versioning cho phép quản lý sự thay đổi của prompt như mã nguồn phần mềm, gán nhãn `production`/`candidate` để deploy an toàn.
+  - Rollback tức thì mà không cần rebuild/re-deploy mã nguồn khi prompt mới gây hồi quy chất lượng hoặc tăng vọt chi phí.
+  - Giám sát token & cost giúp phát hiện sớm các cuộc tấn công prompt injection hoặc vòng lặp vô tận làm cạn kiệt ngân sách.
+- **Điều quan trọng nhất đã học:** Hiểu sâu sắc triết lý Observability trong hệ thống LLM: không chỉ giám sát tài nguyên máy chủ truyền thống mà cần giám sát chất lượng suy luận, số lượng token, chi phí và truy vết phân tán giữa RAG và LLM.
+- **Hạn chế hoặc phần chưa hoàn thành, nếu có:** Cần tiếp tục theo dõi khi tải thực tế biến động lớn và bổ sung thêm các bộ đánh giá tự động (LLM-as-a-judge) nâng cao.
 
 ## 9. Checklist trước khi nộp
 
