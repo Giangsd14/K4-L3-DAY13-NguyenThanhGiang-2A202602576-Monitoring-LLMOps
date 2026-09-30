@@ -7,8 +7,8 @@
 - **Họ và tên:** Nguyễn Thành Giang
 - **MSSV:** 2A202602576
 - **Lớp:** K4-L3B
-- **Repository URL:** https://github.com/vinuin/K4-L3-DAY13-NguyenThanhGiang-2A202602576-Monitoring-LLMOps
-- **Commit SHA cuối:** 29ddb22
+- **Repository URL:** https://github.com/Giangsd14/K4-L3-DAY13-NguyenThanhGiang-2A202602576-Monitoring-LLMOps
+- **Commit SHA cuối:** c2312b6
 - **Challenge ID:** `day13-k4-l3b-monitoring-llmops-v1`
 - **Tên project Langfuse cá nhân:** `day13-k4-l3b-2A202602576`
 
@@ -123,13 +123,13 @@
 
 ## 9. Checklist trước khi nộp
 
-- [ ] Kết quả và evidence thuộc commit SHA cuối.
-- [ ] Tất cả ảnh/output mở được bằng đường dẫn tương đối.
-- [ ] Incident evidence nối đúng metric → log → trace.
-- [ ] Trace/prompt evidence thuộc project Langfuse cá nhân và ảnh không lộ key/secret.
-- [ ] Repository chạy lại được theo README.
-- [ ] Không có secret, API key, PII thô hoặc evidence của người khác/lớp khác.
-- [ ] URL repo và commit SHA cuối đã được nộp trên LMS/Codelabs.
+- [x] Kết quả và evidence thuộc commit SHA cuối.
+- [x] Tất cả ảnh/output mở được bằng đường dẫn tương đối.
+- [x] Incident evidence nối đúng metric → log → trace.
+- [x] Trace/prompt evidence thuộc project Langfuse cá nhân và ảnh không lộ key/secret.
+- [x] Repository chạy lại được theo README.
+- [x] Không có secret, API key, PII thô hoặc evidence của người khác/lớp khác.
+- [x] URL repo và commit SHA cuối đã được nộp trên LMS/Codelabs.
 ## 10. Phần Tự Chọn / Bonus (+10 điểm)
 
 ### Bonus 1: CI/CD Automation & Security Scanning (+5 điểm)
@@ -143,9 +143,9 @@
 
 ### Bonus 2: Enterprise Audit Logging & Retention Policy (+5 điểm)
 - **Tập tin triển khai:**
-  - pp/audit.py: Subsystem ghi nhận nhật ký kiểm toán (Audit Trail) độc lập cho các thao tác quản trị nhạy cảm (bật/tắt incident, cập nhật prompt, phân quyền).
+  - app/audit.py: Subsystem ghi nhận nhật ký kiểm toán (Audit Trail) độc lập cho các thao tác quản trị nhạy cảm (bật/tắt incident, cập nhật prompt, phân quyền).
   - docs/audit_log.md: Tài liệu đặc tả chuẩn hóa kiến trúc Audit Log, cấu trúc schema chi tiết, chính sách lưu trữ (Retention Policy) 90 ngày theo chuẩn SOC 2 / GDPR, và cẩm nang truy vấn điều tra qua CLI (jq) và REST API (GET /api/audit).
-- **Tích hợp:** Gắn trực tiếp vào các route can thiệp hệ thống trong pp/main.py và cung cấp endpoint quản trị /api/audit.
+- **Tích hợp:** Gắn trực tiếp vào các route can thiệp hệ thống trong app/main.py và cung cấp endpoint quản trị /api/audit.
 
 ### Bonus 3: Phân tích và Tối ưu Chi phí Prompt Management
 - **So sánh Prompt v1 vs v2:**
