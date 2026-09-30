@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from .dashboard import get_dashboard_metrics, render_dashboard_html
+from .audit import log_audit_event, query_audit_events
 from structlog.contextvars import bind_contextvars
 
 from .agent import LabAgent
@@ -123,6 +124,7 @@ async def enable_incident(name: str) -> JSONResponse:
     try:
         enable(name)
         log.warning("incident_enabled", service="control", payload={"name": name})
+        log_audit_event("admin", "INCIDENT_ACTION", f"incident:{name}", "SUCCESS", {"incident": name})
         return JSONResponse({"ok": True, "incidents": status()})
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -133,6 +135,12 @@ async def disable_incident(name: str) -> JSONResponse:
     try:
         disable(name)
         log.warning("incident_disabled", service="control", payload={"name": name})
+        log_audit_event("admin", "INCIDENT_ACTION", f"incident:{name}", "SUCCESS", {"incident": name})
         return JSONResponse({"ok": True, "incidents": status()})
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/api/audit")
+async def get_audit_logs(limit: int = 50) -> JSONResponse:
+    return JSONResponse({"ok": True, "events": query_audit_events(limit=limit)})

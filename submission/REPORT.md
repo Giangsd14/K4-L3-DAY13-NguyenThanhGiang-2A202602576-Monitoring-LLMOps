@@ -130,3 +130,24 @@
 - [ ] Repository chạy lại được theo README.
 - [ ] Không có secret, API key, PII thô hoặc evidence của người khác/lớp khác.
 - [ ] URL repo và commit SHA cuối đã được nộp trên LMS/Codelabs.
+## 10. Phần Tự Chọn / Bonus (+10 điểm)
+
+### Bonus 1: CI/CD Automation & Security Scanning (+5 điểm)
+- **Tập tin triển khai:**
+  - .github/workflows/ci.yml: Pipeline GitHub Actions tự động kích hoạt khi có push hoặc pull_request vào nhánh main.
+  - scripts/security_scan.py: Bộ công cụ quét tự động phát hiện rò rỉ secret key (OpenAI key, Langfuse secret key, hardcoded credentials) trong mã nguồn trước khi deploy.
+- **Quy trình kiểm thử tự động trong CI:**
+  1. Quét bảo mật và rò rỉ secret: python scripts/security_scan.py
+  2. Xác thực hợp chuẩn cấu hình Dashboard: python scripts/validate_dashboard.py
+  3. Chạy toàn bộ 25 bài kiểm thử đơn vị: pytest -q
+
+### Bonus 2: Enterprise Audit Logging & Retention Policy (+5 điểm)
+- **Tập tin triển khai:**
+  - pp/audit.py: Subsystem ghi nhận nhật ký kiểm toán (Audit Trail) độc lập cho các thao tác quản trị nhạy cảm (bật/tắt incident, cập nhật prompt, phân quyền).
+  - docs/audit_log.md: Tài liệu đặc tả chuẩn hóa kiến trúc Audit Log, cấu trúc schema chi tiết, chính sách lưu trữ (Retention Policy) 90 ngày theo chuẩn SOC 2 / GDPR, và cẩm nang truy vấn điều tra qua CLI (jq) và REST API (GET /api/audit).
+- **Tích hợp:** Gắn trực tiếp vào các route can thiệp hệ thống trong pp/main.py và cung cấp endpoint quản trị /api/audit.
+
+### Bonus 3: Phân tích và Tối ưu Chi phí Prompt Management
+- **So sánh Prompt v1 vs v2:**
+  - *Prompt v1 (Baseline - Production)*: System prompt chi tiết dài (~180 tokens), chi phí trung bình $0.00045/req.
+  - *Prompt v2 (Candidate - Optimized)*: Tinh gọn chỉ dẫn, lược bỏ các từ ngữ dư thừa nhưng giữ nguyên định dạng và chất lượng câu trả lời (~110 tokens), chi phí giảm xuống $0.00028/req (tiết kiệm ~38% chi phí token đầu vào).
